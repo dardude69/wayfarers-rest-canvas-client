@@ -1,0 +1,26 @@
+{
+  "name": "wayfarers-rest-reference-client",
+  "version": "1.0.0",
+  "description": "Reference frontend for Wayfarer's Rest, a (possibly M?)MORPG implemented with a REST API. Entrant to Linux Game Jam 2019.",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@gitlab.com/0xc0c0a/wayfarers-rest-reference-client.git"
+  },
+  "keywords": [],
+  "author": "",
+  "bugs": {
+    "url": "https://gitlab.com/0xc0c0a/wayfarers-rest-reference-client/issues"
+  },
+  "homepage": "https://gitlab.com/0xc0c0a/wayfarers-rest-reference-client#readme",
+  "private": true,
+  "devDependencies": {
+    "@babel/core": "^7.4.3",
+    "@babel/preset-env": "^7.4.3",
+    "babel-loader": "^8.0.5",
+    "webpack": "^4.30.0",
+    "webpack-cli": "^3.3.0"
+  }
+}
