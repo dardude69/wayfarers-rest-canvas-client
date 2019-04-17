@@ -1,5 +1,12 @@
 module.exports = {
 
+  mode: 'development',
+  devServer: {
+    contentBase: './dist'
+  },
+
+  entry: [ '@babel/polyfill', './src/index.js' ],
+
   module: {
     rules: [
       {
@@ -12,5 +19,4 @@ module.exports = {
       }
     ]
   }
-
 }

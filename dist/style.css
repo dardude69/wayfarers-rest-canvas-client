@@ -1,0 +1,15 @@
+#viewport-container {
+  position: absolute;
+
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+#messages {
+  color: white;
+
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+}
