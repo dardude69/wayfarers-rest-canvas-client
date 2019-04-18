@@ -1,12 +1,57 @@
-#viewport-container {
-  position: absolute;
+html {
+  box-sizing: border-box;
+}
 
+*, *:before, *:after {
+  box-sizing: inherit;
+}
+
+/* Viewport */
+
+#game {
+  width: 1280px;
+  height: 720px;
+
+  position: absolute;
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
+
+  /* XXX */
+  background-color: lightgrey;
 }
 
-#messages {
+#game > div {
+  width: 100%;
+  height: 100%;
+
+  position: absolute;
+  visibility: hidden;
+}
+
+/* Game states. */
+
+/* Auth */
+
+#game #auth .form {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+#game #auth .form label {
+  display: block;
+}
+
+/* Play */
+
+#game #play canvas {
+  width: 100%;
+  height: 100%;
+}
+
+#game #play #messages {
   color: white;
 
   position: absolute;

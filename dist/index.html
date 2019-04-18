@@ -7,9 +7,37 @@
   </head>
 
   <body>
-    <div id="viewport-container">
-      <canvas id="viewport" width="1280" height="720"></canvas>
-      <div id="messages"></div>
+    <div id="game">
+
+      <div id="load">
+        <span>Loading assets...</span>
+      </div>
+
+      <div id="auth">
+        <div class="form">
+          <h1>Wayfarer's Rest</h1>
+
+          <label for="username">Username</label>
+          <input type="text" name="username" required>
+
+          <label for="password">Password</label>
+          <input type="password" name="password" required>
+
+          <button type="button" name="create-player">Create</button>
+          <button type="button" name="authenticate-player">Authenticate</button>
+        </div>
+      </div>
+
+      <div id="error">
+        A problem has been detected and Wayfarer's Rest has been shut down to
+        prevent damage to your computer.
+      </div>
+
+      <div id="play">
+        <canvas id="viewport" width="1280" height="720"></canvas>
+        <div id="messages"></div>
+      </div>
+
     </div>
 
     <script src="main.js"></script>

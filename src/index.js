@@ -1,5 +1,24 @@
 'use strict';
 
+import gameStateMachine from './game-state-machine';
+import LoadGameState from './game-state/load';
+
+document.addEventListener('DOMContentLoaded', async () => {
+
+  gameStateMachine.setState(new LoadGameState());
+
+  function gameLoop() {
+    const gameState = gameStateMachine.getState();
+    gameState.update();
+    gameState.draw();
+
+    window.requestAnimationFrame(gameLoop);
+  }
+  window.requestAnimationFrame(gameLoop);
+
+});
+
+/*
 import loadImage from './load-image';
 import SpriteSheet from './sprite-sheet';
 
@@ -49,6 +68,9 @@ document.addEventListener('DOMContentLoaded', async event => {
       }
 
       for (let [id, playerState] of Object.entries(snapshot.players)) {
+
+        console.log(playerState);
+
         if (x == playerState.location.x && y == playerState.location.y) {
           characterSheet.sprite(0).draw(context, x*32 + 8, y*32 + 8);
         }
@@ -58,3 +80,4 @@ document.addEventListener('DOMContentLoaded', async event => {
   }
 
 });
+*/
