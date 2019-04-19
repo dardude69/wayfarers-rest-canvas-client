@@ -31,7 +31,7 @@ export default class SpriteSheet {
     }
 
     return {
-      draw: (context, dx=0, dy=0) => {
+      draw: (context, dx=0, dy=0, scaleX=1, scaleY=scaleX) => {
         context.drawImage(this.image,
           column * this.tileWidth,
           row * this.tileHeight,
@@ -39,8 +39,8 @@ export default class SpriteSheet {
           this.tileHeight,
           dx,
           dy,
-          this.tileWidth,
-          this.tileHeight);
+          scaleX*this.tileWidth,
+          scaleY*this.tileHeight);
       }
     };
   }

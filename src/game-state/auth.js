@@ -44,6 +44,8 @@ export default class AuthGameState extends GameState {
   end() {
     getContainer().style.visibility = 'hidden';
 
+    disableInput();
+
     getCreatePlayerButton().removeEventListener('click', this.createPlayer.bind(this));
     getAuthenticatePlayerButton().removeEventListener('click', this.authenticatePlayer.bind(this));
   }
@@ -58,7 +60,7 @@ export default class AuthGameState extends GameState {
       const username = getUsername();
       const password = getPassword();
 
-      await playersApi.createPlayer(username, password);
+      await playersApi.player(username, password).create();
 
       gameStateMachine.setState(new PlayGameState(username, password));
     } catch (error) {
@@ -75,7 +77,7 @@ export default class AuthGameState extends GameState {
       const username = getUsername();
       const password = getPassword();
 
-      if (await playersApi.authenticatePlayer(username, password)) {
+      if (await playersApi.player(username, password).authenticate()) {
         gameStateMachine.setState(new PlayGameState(username, password));
       } else {
         alert('Unauthorized!');
