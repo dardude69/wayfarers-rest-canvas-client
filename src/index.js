@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function gameLoop() {
     const gameState = gameStateMachine.getState();
+
     gameState.update();
     gameState.draw();
 
