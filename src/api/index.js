@@ -1,5 +1,5 @@
 export default {
-  baseUrl: 'https://localhost:8000',
+  baseUrl: 'https://zakstephens.com:3000/',
 
   buildHeaders: (headers=new Headers()) => {
     const builder = {
