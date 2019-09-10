@@ -3,15 +3,22 @@ import url from 'url';
 
 export default {
 
-  send: async message => {
-    const requestUrl = url.resolve(api.baseUrl, '/api/v1/messages');
+  send: async ({ id, username, password, content }) => {
+    const requestUrl = url.resolve(api.baseUrl, '/api/v2/messages');
 
     const response = await fetch(requestUrl, {
       method: 'POST',
       headers: api.buildHeaders()
         .setContentTypeJson()
+        .setBasicAuth(username, password)
         .get(),
-      body: JSON.stringify({ body: message })
+      body: JSON.stringify({
+        sender: {
+          id,
+          username,
+        },
+        content
+      })
     });
 
     if (!response.ok) {

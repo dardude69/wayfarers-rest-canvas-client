@@ -26,8 +26,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   function gameLoop() {
     const gameState = gameStateMachine.getState();
 
-    keysDown
-      .forEach(key => gameState.keyDown(key));
+    keysDown.forEach(key => gameState.keyDown(key));
+
     gameState.update();
     gameState.draw();
 
@@ -35,8 +35,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   gameStateMachine.setState(new LoadGameState([
-    './assets/tileset.png',
-    './assets/characters.png'
+    require('./assets/tileset.png'),
+    require('./assets/characters.png')
   ]));
   window.requestAnimationFrame(gameLoop);
 

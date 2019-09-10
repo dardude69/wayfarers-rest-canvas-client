@@ -7,7 +7,7 @@ export default {
   player: (username, password) => ({
 
     create: async () => {
-      const requestUrl = url.resolve(api.baseUrl, '/api/v1/players');
+      const requestUrl = url.resolve(api.baseUrl, '/api/v2/players');
 
       const response = await fetch(requestUrl, {
         method: 'POST',
@@ -27,7 +27,7 @@ export default {
     },
 
     authenticate: async () => {
-      const requestUrl = `${url.resolve(api.baseUrl, '/api/v1/players')}/${encodeURIComponent(username)}/authentication`;
+      const requestUrl = `${url.resolve(api.baseUrl, '/api/v2/players')}/${encodeURIComponent(username)}/authentication`;
 
       const response = await fetch(requestUrl, {
         method: 'GET',
@@ -50,7 +50,7 @@ export default {
     move: async direction => {
       assert(['left', 'right', 'up', 'down'].includes(direction));
 
-      const requestUrl = `${url.resolve(api.baseUrl, '/api/v1/players')}/${encodeURIComponent(username)}/movements`;
+      const requestUrl = `${url.resolve(api.baseUrl, '/api/v2/players')}/${encodeURIComponent(username)}/movements`;
 
       const response = await fetch(requestUrl, {
         method: 'POST',

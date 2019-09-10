@@ -1,7 +1,7 @@
 export default {
-  baseUrl: 'https://zakstephens.com:3000/',
+  baseUrl: 'https://localhost:8000/',
 
-  buildHeaders: (headers=new Headers()) => {
+  buildHeaders: (headers = new Headers()) => {
     const builder = {
       setBasicAuth: (username, password) => {
         headers.set('Authorization', `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`);

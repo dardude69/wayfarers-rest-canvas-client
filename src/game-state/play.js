@@ -2,9 +2,11 @@ import assets from '../assets';
 import { easeInOutCubic } from 'easing-utils';
 import GameState from '.';
 import gameStateMachine from '../game-state-machine';
+import { randomRangeInt } from '../math-util';
 import messagesApi from '../api/messages';
 import playersApi from '../api/players';
 import positionUtil from '../position-util';
+import rgbToHex from '../rgb-to-hex';
 import snapshotApi from '../api/snapshot';
 import SpriteSheet from '../sprite-sheet';
 import seedrandom from 'seedrandom';
@@ -41,18 +43,31 @@ class PlayGameState extends GameState {
 
   start() {
     getContainer().style.visibility = 'visible';
+    getSendButton().addEventListener('click', this.sendMessage.bind(this));
+  }
 
-    getSendButton().addEventListener('click', () => {
-      const text = getMessageInput().value;
-      if (text.length === 0) {
-        return;
-      }
+  async sendMessage() {
+    const input = getMessageInput();
+    const text = input.value;
 
-      const playerState = this.getLocalPlayerState();
+    if (text.length === 0) {
+      return;
+    }
 
-      messagesApi.send(`${playerState.username}: ${text}`)
-        .catch(console.error);
-    });
+    const playerState = this.getLocalPlayerState();
+
+    try {
+      await messagesApi.send({
+        id: playerState.id,
+        username: this.username,
+        password: this.password,
+        content: text 
+      });
+
+      input.value = '';
+    } catch (error) {
+      console.error(error);
+    }
   }
 
   end() {
@@ -64,7 +79,7 @@ class PlayGameState extends GameState {
 
     for (let [id, playerState] of Object.entries(this.snapshots[1].players)) {
       if (playerState.username == this.username) {
-        return playerState;
+        return Object.assign({}, playerState, { id });
       }
     }
   }
@@ -105,12 +120,6 @@ class PlayGameState extends GameState {
     };
   }
 
-  static getRandomInt(random, min, max) {
-    min = Math.ceil(min);
-    max = Math.floor(max);
-    return Math.floor(random * (max-min)) + min;
-  }
-
   drawCharactersInterpolated(previousSnapshot, currentSnapshot, t) {
     const characterSheet = new SpriteSheet(assets.images['./assets/characters.png'], characterSize);
 
@@ -132,7 +141,7 @@ class PlayGameState extends GameState {
         y = playerState.location.y;
       }
 
-      characterSheet.sprite(PlayGameState.getRandomInt(seedrandom(playerState.username)(), 0, 23)*4).draw(this.context, x*tileSize*scale, y*tileSize*scale, scale);
+      characterSheet.sprite(randomRangeInt(0, 23, seedrandom(playerState.username)())*4).draw(this.context, x*tileSize*scale, y*tileSize*scale, scale);
     }
   }
 
@@ -174,14 +183,10 @@ class PlayGameState extends GameState {
 
       this.targetPosition.x += directionX;
       this.targetPosition.y += directionY;
+    } else if (key === 'Enter') {
+      this.sendMessage();
     }
 
-  }
-
-  static escapeHtml(s) {
-    const div = document.createElement('div');
-    div.appendChild(document.createTextNode(s));
-    return div.innerHTML;
   }
 
   async fetchSnapshot() {
@@ -203,16 +208,30 @@ class PlayGameState extends GameState {
       const messageFeed = getMessageFeed();
       messageFeed.innerHTML = '';
 
-      Object.keys(newSnapshot.messages)
-        .map(key => parseInt(key))
-        .sort()
-        .slice(-16)
-        .reverse()
-        .forEach(key => {
-          const message = newSnapshot.messages[key];
+      for (let [key, value] of Object.entries(newSnapshot.messages).slice(-10)) {
+        const li = document.createElement('li');
 
-          messageFeed.innerHTML += `<li>${PlayGameState.escapeHtml(message.body)}</li>`;
-        });
+        const usernameSpan = document.createElement('span');
+        usernameSpan.className = 'username';
+        usernameSpan.innerText = value.sender.username;
+
+        const usernameRandom = seedrandom(value.sender.username);
+
+        usernameSpan.style.color = rgbToHex(
+          randomRangeInt(0, 255, usernameRandom()),
+          randomRangeInt(0, 255, usernameRandom()),
+          randomRangeInt(0, 255, usernameRandom())
+        );
+
+        const contentSpan = document.createElement('span');
+        contentSpan.className = 'content';
+        contentSpan.innerText = value.content;
+
+        li.appendChild(usernameSpan);
+        li.appendChild(contentSpan);
+
+        messageFeed.appendChild(li);
+      }
 
     } catch (error) {
       console.error(error);
