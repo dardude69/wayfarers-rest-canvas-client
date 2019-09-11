@@ -10,7 +10,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.addEventListener('keydown', event => {
     if (!keysDown.has(event.key)) {
       keysDown.add(event.key);
-
       gameStateMachine.getState().keyPressed(event.key);
     }
   });
@@ -18,7 +17,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.addEventListener('keyup', event => {
     if (keysDown.has(event.key)) {
       keysDown.delete(event.key);
-
       gameStateMachine.getState().keyReleased(event.key);
     }
   });
@@ -35,8 +33,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   gameStateMachine.setState(new LoadGameState([
-    require('./assets/tileset.png'),
-    require('./assets/characters.png')
+    require('./assets/images/tileset.png'),
+    require('./assets/images/characters.png')
   ]));
   window.requestAnimationFrame(gameLoop);
 

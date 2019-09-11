@@ -10,7 +10,6 @@ export default class LoadGameState extends GameState {
     super();
 
     assert(imageFilePaths);
-
     this.imageFilePaths = imageFilePaths;
   }
 

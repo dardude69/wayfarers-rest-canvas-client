@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Reference frontend for Wayfarer's Rest, a (possibly M?)MORPG implemented with a REST API. Entrant to Linux Game Jam 2019.",
   "scripts": {
+    "build": "webpack",
     "start": "webpack-dev-server --watch"
   },
   "repository": {

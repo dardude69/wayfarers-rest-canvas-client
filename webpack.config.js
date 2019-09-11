@@ -7,25 +7,27 @@ module.exports = {
     contentBase: './dist'
   },
 
+  devtool: 'eval-source-map',
+
   entry: [ '@babel/polyfill', './src/index.html', './src/index.css', './src/index.js' ],
 
   module: {
     rules: [
       {
         test: /\.css$/,
-        use: ['style-loader', 'css-loader']
+        loader: ['style-loader', 'css-loader']
       },
 
       /* <img> tags should have their src added to the dependency graph. */
       {
         test: /\.html$/,
-        use: 'html-loader'
+        loader: 'html-loader'
       },
 
       {
         test: /\.m?js$/,
         exclude: /node_modules/,
-        use: {
+        loader: {
           loader: 'babel-loader',
           options: { presets: ['@babel/preset-env'] }
         }
@@ -33,12 +35,18 @@ module.exports = {
 
       {
         test: /\.png$/,
-        use: 'file-loader'
+        loader: 'file-loader',
+        options: {
+          name: 'assets/images/[name].[ext]'
+        }
       },
 
       {
         test: /\.woff2?$/,
-        use: 'file-loader'
+        loader: 'file-loader',
+        options: {
+          name: 'assets/fonts/[name].[ext]'
+        }
       }
     ]
   },

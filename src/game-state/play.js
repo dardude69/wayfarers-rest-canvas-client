@@ -1,3 +1,6 @@
+'use strict';
+
+import assert from 'assert';
 import assets from '../assets';
 import { easeInOutCubic } from 'easing-utils';
 import GameState from '.';
@@ -20,7 +23,6 @@ const getMessageFeed = () => document.querySelector('#game #play #messages ul');
 const scale = 3;
 const tileSize = 16;
 const characterSize = 16;
-const tickRate = 2;
 
 const lerp = (a, b, t) => (1-t)*a + t*b;
 
@@ -32,13 +34,13 @@ class PlayGameState extends GameState {
     this.password = password;
     this.snapshots = snapshots;
 
-    this.lastSnapshotTime = Date.now();
-
     this.canvas = document.getElementById('viewport');
     this.context = this.canvas.getContext('2d');
     this.context.imageSmoothingEnabled = false;
 
-    this.targetPositionToPlayerPosition();
+    this.interpolationTime = 0;
+    this.interpolationStartTime = Date.now();
+    this.changeState(PlayGameState.states.startingFetch);
   }
 
   start() {
@@ -46,22 +48,57 @@ class PlayGameState extends GameState {
     getSendButton().addEventListener('click', this.sendMessage.bind(this));
   }
 
+  end() {
+    getContainer().style.visibility = 'hidden';
+  }
+
+  /* BUSINESS LOGIC */
+
+  static get states() {
+    return {
+      startingFetch: 0,
+      interpolatingSnapshots: 1,
+      waitingForFetch: 2
+    };
+  }
+
+  changeState(newState) {
+    this.state = newState;
+
+    switch (this.state) {
+      case PlayGameState.states.startingFetch:
+        this.finishedFetching = false;
+
+        this.updateSnapshots()
+          .then(() => this.finishedFetching = true)
+          .catch(error => {
+            console.error(error);
+            this.finishedFetching = true;
+          });
+
+        this.changeState(PlayGameState.states.interpolatingSnapshots);
+        break;
+      case PlayGameState.states.interpolatingSnapshots:
+        this.interpolationStartTime = Date.now();
+        this.updateMessagesInDOM();
+
+        break;
+    }
+  }
+
   async sendMessage() {
     const input = getMessageInput();
-    const text = input.value;
+    const content = input.value;
 
-    if (text.length === 0) {
+    if (content.length === 0) {
       return;
     }
 
-    const playerState = this.getLocalPlayerState();
-
     try {
       await messagesApi.send({
-        id: playerState.id,
         username: this.username,
         password: this.password,
-        content: text 
+        content
       });
 
       input.value = '';
@@ -70,24 +107,99 @@ class PlayGameState extends GameState {
     }
   }
 
-  end() {
-    getContainer().style.visibility = 'hidden';
-  }
+  keyPressed(key) {
+    /* Move player */
 
-  getLocalPlayerState() {
-    /* This is the function that confirms that I have given up. */
+    if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(key)) {
+      const direction = key.substring(5).toLowerCase();
 
-    for (let [id, playerState] of Object.entries(this.snapshots[1].players)) {
-      if (playerState.username == this.username) {
-        return Object.assign({}, playerState, { id });
-      }
+      playersApi.player(this.username, this.password)
+        .move(direction)
+        .catch(error => {
+          if (error === 409) {
+            /* Just a collision, no big deal. */
+            /* TODO: Play Pokemon Firered-style "bong" sound effect. */
+
+            return;
+          }
+          throw error;
+        })
+        .catch(console.error); // TODO: Properly deal with error.
+
+      return;
+    }
+
+    /* Send message */
+
+    if (key === 'Enter') {
+      this.sendMessage();
+      return;
     }
   }
 
-  targetPositionToPlayerPosition() {
-    const { x, y } = this.getLocalPlayerState().location;
-    this.targetPosition = { x, y };
+  get interpolationDuration() {
+    return 1000;
   }
+
+  update() {
+
+    switch (this.state) {
+      case PlayGameState.states.interpolatingSnapshots:
+        this.interpolationTime = Math.min((Date.now()-this.interpolationStartTime) / this.interpolationDuration, 1);
+
+        if (this.interpolationTime === 1) {
+          this.changeState(PlayGameState.states.waitingForFetch);
+        }
+
+        break;
+      case PlayGameState.states.waitingForFetch:
+        if (this.finishedFetching) {
+          this.changeState(PlayGameState.states.startingFetch);
+        }
+        break;
+    }
+
+  }
+
+  async updateSnapshots() {
+    const newSnapshot = await snapshotApi.player(this.username, this.password).get();
+
+    this.snapshots[0] = this.snapshots[1];
+    this.snapshots[1] = newSnapshot;
+  }
+
+  updateMessagesInDOM() {
+    const messageFeed = getMessageFeed();
+
+    messageFeed.innerHTML = '';
+
+    for (let [key, value] of Object.entries(this.snapshots[1].messages).slice(-10)) {
+      const li = document.createElement('li');
+
+      const usernameSpan = document.createElement('span');
+      usernameSpan.className = 'username';
+      usernameSpan.innerText = value.sender.username;
+
+      const idRandom = seedrandom(value.sender.id);
+
+      usernameSpan.style.color = rgbToHex(
+        randomRangeInt(64, 255, idRandom()),
+        randomRangeInt(64, 255, idRandom()),
+        randomRangeInt(64, 255, idRandom())
+      );
+
+      const contentSpan = document.createElement('span');
+      contentSpan.className = 'content';
+      contentSpan.innerText = value.content;
+
+      li.appendChild(usernameSpan);
+      li.appendChild(contentSpan);
+
+      messageFeed.appendChild(li);
+    }
+  }
+
+  /* DRAW STUFF */
 
   drawBackground(snapshot) {
     this.context.fillStyle = 'black';
@@ -95,7 +207,7 @@ class PlayGameState extends GameState {
   }
 
   drawTiles(snapshot) {
-    const tileSheet = new SpriteSheet(assets.images['./assets/tileset.png'], tileSize);
+    const tileSheet = new SpriteSheet(assets.images['assets/images/tileset.png'], tileSize);
 
     for (let y = 0; y < snapshot.map.height; ++y) {
       for (let x = 0; x < snapshot.map.width; ++x) {
@@ -105,43 +217,45 @@ class PlayGameState extends GameState {
           if (tileValue !== 0) {
             tileSheet.sprite(tileValue-1).draw(this.context, x*tileSize*scale, y*tileSize*scale, scale);
           }
-
         }
       }
     }
   }
 
-  getInterpolatedPlayerPosition(t) {
-    const playerState = this.getLocalPlayerState();
+  get id() {
+    if (this._id == null) {
+      for (let [id, playerState] of Object.entries(this.snapshots[0].players)) {
+        if (playerState.username === this.username) {
+          this._id = id;
+          break;
+        }
+      }
+    }
 
-    return {
-      x: lerp(this.targetPosition.x, playerState.location.x, easeInOutCubic(t)),
-      y: lerp(this.targetPosition.y, playerState.location.y, easeInOutCubic(t))
-    };
+    assert(this._id != null);
+    return this._id;
+  }
+
+  interpolatedPlayerPosition(previousPlayerState, currentPlayerState, t) {
+    const x = lerp(previousPlayerState.location.x, currentPlayerState.location.x, t);
+    const y = lerp(previousPlayerState.location.y, currentPlayerState.location.y, t);
+
+    return { x, y };
   }
 
   drawCharactersInterpolated(previousSnapshot, currentSnapshot, t) {
-    const characterSheet = new SpriteSheet(assets.images['./assets/characters.png'], characterSize);
+    const characterSheet = new SpriteSheet(assets.images['assets/images/characters.png'], characterSize);
 
-    for (let [id, playerState] of Object.entries(currentSnapshot.players)) {
-      let x = undefined;
-      let y = undefined;
+    for (let [id, currentPlayerState] of Object.entries(currentSnapshot.players)) {
 
-      if (playerState.username === this.username) {
-        // Why did flipping the parameters fix this?
-        // I'm so confused.
-        // Nothing here makes sense.
-
-        const interpolated = this.getInterpolatedPlayerPosition(t);
-
-        x = interpolated.x;
-        y = interpolated.y;
-      } else {
-        x = playerState.location.x;
-        y = playerState.location.y;
+      let previousPlayerState = previousSnapshot.players[id];
+      if (previousPlayerState == null) {
+        previousPlayerState = currentPlayerState;
       }
 
-      characterSheet.sprite(randomRangeInt(0, 23, seedrandom(playerState.username)())*4).draw(this.context, x*tileSize*scale, y*tileSize*scale, scale);
+      const { x, y } = this.interpolatedPlayerPosition(previousPlayerState, currentPlayerState, easeInOutCubic(t));
+
+      characterSheet.sprite(randomRangeInt(0, 23, seedrandom(id)())*4).draw(this.context, x*tileSize*scale, y*tileSize*scale, scale);
     }
   }
 
@@ -149,7 +263,11 @@ class PlayGameState extends GameState {
     this.drawBackground(currentSnapshot);
 
     this.context.save();
-    const { x, y } = this.getInterpolatedPlayerPosition(t);
+
+    const { x, y } = this.interpolatedPlayerPosition(
+      this.snapshots[0].players[this.id],
+      this.snapshots[1].players[this.id],
+      easeInOutCubic(t));
 
     this.context.translate(Math.floor(-x*tileSize*scale + 1280*0.5), Math.floor(-y*tileSize*scale + 720*0.5));
 
@@ -159,110 +277,13 @@ class PlayGameState extends GameState {
     this.context.restore();
   }
 
-  keyPressed(key) {
-
-    if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(key)) {
-      const direction = key.substring(5).toLowerCase();
-
-      playersApi.player(this.username, this.password).move(direction)
-        .catch(error => {
-          if (error === 409) {
-            /* Just a collision, no big deal. */
-
-            /* TODO: Play Pokemon Firered-style "bong" sound effect. */
-            return;
-          }
-
-          throw error;
-        })
-        .catch(console.error); // TODO: Properly deal with error.
-
-      /* The world's shittiest prediction. */
-
-      const { x: directionX, y: directionY } = positionUtil.positionFromDirection(direction);
-
-      this.targetPosition.x += directionX;
-      this.targetPosition.y += directionY;
-    } else if (key === 'Enter') {
-      this.sendMessage();
-    }
-
-  }
-
-  async fetchSnapshot() {
-    try {
-      this.fetchingSnapshot = true;
-
-      const newSnapshot = await snapshotApi.player(this.username, this.password).get();
-
-      this.snapshots[0] = this.snapshots[1];
-      this.snapshots[1] = newSnapshot;
-      this.lastSnapshotTime = Date.now();
-      this.fetchingSnapshot = false;
-
-
-
-      this.targetPositionToPlayerPosition();
-
-
-      const messageFeed = getMessageFeed();
-      messageFeed.innerHTML = '';
-
-      for (let [key, value] of Object.entries(newSnapshot.messages).slice(-10)) {
-        const li = document.createElement('li');
-
-        const usernameSpan = document.createElement('span');
-        usernameSpan.className = 'username';
-        usernameSpan.innerText = value.sender.username;
-
-        const usernameRandom = seedrandom(value.sender.username);
-
-        usernameSpan.style.color = rgbToHex(
-          randomRangeInt(0, 255, usernameRandom()),
-          randomRangeInt(0, 255, usernameRandom()),
-          randomRangeInt(0, 255, usernameRandom())
-        );
-
-        const contentSpan = document.createElement('span');
-        contentSpan.className = 'content';
-        contentSpan.innerText = value.content;
-
-        li.appendChild(usernameSpan);
-        li.appendChild(contentSpan);
-
-        messageFeed.appendChild(li);
-      }
-
-    } catch (error) {
-      console.error(error);
-      this.fetchingSnapshot = false;
-    }
-  }
-
-  getMaxSnapshotInterval() {
-    /* "Max" in case player movement can ask for a snapshot later. */
-    return 1000 * (1 / tickRate);
-  }
-
-  update() {
-    /* I wanted to do this with Promise.race on setTimeout and player input promises,
-     * but that sounds brittle.
-     * I mean, this entire class is brittle tbh. */
-
-    if (!this.fetchingSnapshot) {
-      if (this.lastSnapshotTime+this.getMaxSnapshotInterval() < Date.now()) {
-        this.fetchSnapshot();
-      }
-    }
-  }
-
   draw() {
-    this.drawSnapshotsInterpolated(
-      this.snapshots[0],
-      this.snapshots[1],
-      Math.min(1, 0.25 * this.getMaxSnapshotInterval() / (Date.now()-this.lastSnapshotTime)));
+    this.drawSnapshotsInterpolated(this.snapshots[0], this.snapshots[1], this.interpolationTime);
   }
 }
+
+/* Deal with the "we don't have any snapshots" edge case outside the main
+ * game state. Clean code. */
 
 export default class extends GameState {
   constructor(username, password) {
@@ -273,7 +294,8 @@ export default class extends GameState {
   }
 
   start() {
-    snapshotApi.player(this.username, this.password).get()
+    snapshotApi.player(this.username, this.password)
+      .get()
       .then(snapshot => gameStateMachine.setState(new PlayGameState(this.username, this.password, [snapshot, snapshot])))
       .catch(console.error); // TODO: Properly deal with error (retry?)
   }

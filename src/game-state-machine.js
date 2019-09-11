@@ -8,6 +8,6 @@ export default {
       currentGameState.end();
     }
     currentGameState = newGameState;
-    newGameState.start();
+    currentGameState.start();
   }
 };

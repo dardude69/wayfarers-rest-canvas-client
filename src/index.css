@@ -6,13 +6,24 @@ html {
   box-sizing: inherit;
 }
 
+@font-face {
+  font-family: 'Enchanted Sword';
+  src: url('assets/fonts/EnchantedSword.woff2') format('woff2'),
+       url('assets/fonts/EnchantedSword.woff') format('woff');
+  font-weight: 500;
+  font-style: normal;
+}
+
 body {
-  font-family: sans-serif;
+  font-family: 'Enchanted Sword', serif;
+  font-size: 32px;
 }
 
 button, input {
   padding: 0.667em;
   margin: 0.667em 0px;
+
+  
 }
 
 /* Viewport */
@@ -53,6 +64,31 @@ button, input {
   display: block;
 }
 
+#game #auth header h1 {
+  font-weight: normal;
+  font-size: 2em;
+
+  position: relative;
+}
+
+@keyframes rock {
+  0% {
+    transform: rotate(-10deg);
+  }
+
+  100% {
+    transform: rotate(10deg);
+  }
+}
+
+#game #auth header p {
+  position: absolute;
+  right: 0px;
+  top: 2em;
+
+  animation: rock 1s ease-in-out 0s alternate infinite;
+}
+
 /* Play */
 
 #play canvas {
@@ -72,20 +108,23 @@ button, input {
 }
 
 #play #messages input {
-  width: 66%;
+  width: calc(66% - 0.5em);
+  margin: 0px 0.5em 0px 0px;
 }
 
 #play #messages button {
-  width: 33%;
+  width: calc(33% - 0.5em);
+  margin: 0px 0px 0px 0.5em;
 }
 
 #play #messages ul {
   padding: 0px;
+  margin: 0px 0px 1em 0px;
 }
 
 #play #messages li {
   list-style-type: none;
-  margin: 0.333em 0px;
+  margin: 0px;
 
   text-shadow: 1px 1px 0px black;
 }

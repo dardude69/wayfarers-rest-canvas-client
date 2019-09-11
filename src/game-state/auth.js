@@ -80,7 +80,7 @@ export default class AuthGameState extends GameState {
       if (await playersApi.player(username, password).authenticate()) {
         gameStateMachine.setState(new PlayGameState(username, password));
       } else {
-        alert('Unauthorized!');
+        alert('Unauthenticated!');
       }
     } catch (error) {
       alert(error);
