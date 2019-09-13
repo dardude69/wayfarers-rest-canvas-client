@@ -1,5 +1,5 @@
 export default {
-  baseUrl: 'https://localhost:8000/',
+  baseUrl: 'https://wayfarers-rest-api.zakstephens.com/',
 
   buildHeaders: (headers = new Headers()) => {
     const builder = {
