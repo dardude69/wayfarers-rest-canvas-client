@@ -21,21 +21,49 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
   
-  function gameLoop() {
-    const gameState = gameStateMachine.getState();
+  const gameLoop = () => {
+    const dt = 1/60;
 
-    keysDown.forEach(key => gameState.keyDown(key));
+    let previousTimestamp = undefined;
+    let accumulator = 0;
 
-    gameState.update();
-    gameState.draw();
+    const frame = timestamp => {
 
-    window.requestAnimationFrame(gameLoop);
+      const gameState = gameStateMachine.getState();
+
+      timestamp /= 1000; // Work in seconds
+
+      /* Update */
+
+      if (previousTimestamp !== undefined) {
+        const frameTime = timestamp - previousTimestamp;
+        accumulator += frameTime;
+
+        while (accumulator >= dt) {
+
+          accumulator -= dt;
+        }
+
+        keysDown.forEach(key => gameState.keyDown(key));
+        gameState.update(frameTime);
+      }
+
+      previousTimestamp = timestamp;
+
+      gameState.draw();
+
+      window.requestAnimationFrame(frame);
+    };
+
+    window.requestAnimationFrame(frame);
+
   }
 
   gameStateMachine.setState(new LoadGameState([
     require('./assets/images/tileset.png'),
     require('./assets/images/characters.png')
   ]));
-  window.requestAnimationFrame(gameLoop);
+
+  gameLoop();
 
 });

@@ -27,19 +27,18 @@ const characterSize = 16;
 const lerp = (a, b, t) => (1-t)*a + t*b;
 
 class PlayGameState extends GameState {
-  constructor(username, password, snapshots) {
+  constructor(username, password, snapshot) {
     super();
 
     this.username = username;
     this.password = password;
-    this.snapshots = snapshots;
+
+    this.snapshots = [snapshot, snapshot, null]; // past, present, future
 
     this.canvas = document.getElementById('viewport');
     this.context = this.canvas.getContext('2d');
     this.context.imageSmoothingEnabled = false;
 
-    this.interpolationTime = 0;
-    this.interpolationStartTime = Date.now();
     this.changeState(PlayGameState.states.startingFetch);
   }
 
@@ -51,8 +50,6 @@ class PlayGameState extends GameState {
   end() {
     getContainer().style.visibility = 'hidden';
   }
-
-  /* BUSINESS LOGIC */
 
   static get states() {
     return {
@@ -69,8 +66,11 @@ class PlayGameState extends GameState {
       case PlayGameState.states.startingFetch:
         this.finishedFetching = false;
 
-        this.updateSnapshots()
-          .then(() => this.finishedFetching = true)
+        snapshotApi.player(this.username, this.password).get()
+          .then(snapshot => {
+            this.snapshots[2] = snapshot;
+            this.finishedFetching = true;
+          })
           .catch(error => {
             console.error(error);
             this.finishedFetching = true;
@@ -79,9 +79,29 @@ class PlayGameState extends GameState {
         this.changeState(PlayGameState.states.interpolatingSnapshots);
         break;
       case PlayGameState.states.interpolatingSnapshots:
-        this.interpolationStartTime = Date.now();
+        this.interpolationTime = 0;
         this.updateMessagesInDOM();
 
+        break;
+    }
+  }
+
+  update(dt) {
+    switch (this.state) {
+      case PlayGameState.states.interpolatingSnapshots:
+        this.interpolationTime = Math.min(this.interpolationTime + dt/this.interpolationDuration, 1);
+        if (this.interpolationTime === 1) {
+          this.changeState(PlayGameState.states.waitingForFetch);
+        }
+
+        break;
+      case PlayGameState.states.waitingForFetch:
+        if (this.finishedFetching) {
+          this.snapshots.shift();
+          this.snapshots.push(null);
+
+          this.changeState(PlayGameState.states.startingFetch);
+        }
         break;
     }
   }
@@ -138,34 +158,7 @@ class PlayGameState extends GameState {
   }
 
   get interpolationDuration() {
-    return 1000;
-  }
-
-  update() {
-
-    switch (this.state) {
-      case PlayGameState.states.interpolatingSnapshots:
-        this.interpolationTime = Math.min((Date.now()-this.interpolationStartTime) / this.interpolationDuration, 1);
-
-        if (this.interpolationTime === 1) {
-          this.changeState(PlayGameState.states.waitingForFetch);
-        }
-
-        break;
-      case PlayGameState.states.waitingForFetch:
-        if (this.finishedFetching) {
-          this.changeState(PlayGameState.states.startingFetch);
-        }
-        break;
-    }
-
-  }
-
-  async updateSnapshots() {
-    const newSnapshot = await snapshotApi.player(this.username, this.password).get();
-
-    this.snapshots[0] = this.snapshots[1];
-    this.snapshots[1] = newSnapshot;
+    return 0.25;
   }
 
   updateMessagesInDOM() {
@@ -199,8 +192,6 @@ class PlayGameState extends GameState {
     }
   }
 
-  /* DRAW STUFF */
-
   drawBackground(snapshot) {
     this.context.fillStyle = 'black';
     this.context.fillRect(0, 0, this.canvas.width, this.canvas.height);
@@ -217,12 +208,15 @@ class PlayGameState extends GameState {
           if (tileValue !== 0) {
             tileSheet.sprite(tileValue-1).draw(this.context, x*tileSize*scale, y*tileSize*scale, scale);
           }
+
         }
       }
     }
   }
 
   get id() {
+    /* Lazy-initialize backing field, using list of players in (a) snapshot. */
+
     if (this._id == null) {
       for (let [id, playerState] of Object.entries(this.snapshots[0].players)) {
         if (playerState.username === this.username) {
@@ -236,7 +230,16 @@ class PlayGameState extends GameState {
     return this._id;
   }
 
-  interpolatedPlayerPosition(previousPlayerState, currentPlayerState, t) {
+  static interpolatedPlayerPosition(previousPlayerState, currentPlayerState, t) {
+    // Special case: on a different map, just use the new position.
+
+    if (previousPlayerState.location.map !== currentPlayerState.location.map) {
+      return {
+        x: currentPlayerState.location.x,
+        y: currentPlayerState.location.y
+      };
+    }
+
     const x = lerp(previousPlayerState.location.x, currentPlayerState.location.x, t);
     const y = lerp(previousPlayerState.location.y, currentPlayerState.location.y, t);
 
@@ -253,9 +256,11 @@ class PlayGameState extends GameState {
         previousPlayerState = currentPlayerState;
       }
 
-      const { x, y } = this.interpolatedPlayerPosition(previousPlayerState, currentPlayerState, easeInOutCubic(t));
+      let { x, y } = PlayGameState.interpolatedPlayerPosition(previousPlayerState, currentPlayerState, easeInOutCubic(t));
 
-      characterSheet.sprite(randomRangeInt(0, 23, seedrandom(id)())*4).draw(this.context, x*tileSize*scale, y*tileSize*scale, scale);
+      characterSheet
+        .sprite(randomRangeInt(0, 23, seedrandom(id)())*4)
+        .draw(this.context, x*tileSize*scale, y*tileSize*scale, scale);
     }
   }
 
@@ -264,12 +269,20 @@ class PlayGameState extends GameState {
 
     this.context.save();
 
-    const { x, y } = this.interpolatedPlayerPosition(
+    const cameraPosition = PlayGameState.interpolatedPlayerPosition(
       this.snapshots[0].players[this.id],
       this.snapshots[1].players[this.id],
-      easeInOutCubic(t));
+      t
+    );
 
-    this.context.translate(Math.floor(-x*tileSize*scale + 1280*0.5), Math.floor(-y*tileSize*scale + 720*0.5));
+    // Fix floating-point inaccuracy (round to 15 decimal places).
+    // Stops the camera jumping around.
+    // TODO: Fix everywhere it's an issue.
+    const m = 10 ** 15;
+    cameraPosition.x = Math.round(cameraPosition.x * m) / m;
+    cameraPosition.y = Math.round(cameraPosition.y * m) / m;
+
+    this.context.translate(Math.floor(-cameraPosition.x*tileSize*scale + 1280*0.5), Math.floor(-cameraPosition.y*tileSize*scale + 720*0.5));
 
     this.drawTiles(currentSnapshot);
     this.drawCharactersInterpolated(previousSnapshot, currentSnapshot, t);
@@ -296,7 +309,7 @@ export default class extends GameState {
   start() {
     snapshotApi.player(this.username, this.password)
       .get()
-      .then(snapshot => gameStateMachine.setState(new PlayGameState(this.username, this.password, [snapshot, snapshot])))
+      .then(snapshot => gameStateMachine.setState(new PlayGameState(this.username, this.password, snapshot)))
       .catch(console.error); // TODO: Properly deal with error (retry?)
   }
 }
