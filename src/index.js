@@ -8,6 +8,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const keysDown = new Set();
 
   document.addEventListener('keydown', event => {
+    if (['ArrowUp', 'ArrowDown'].includes(event.key)) {
+      event.preventDefault();
+    }
+
     if (!keysDown.has(event.key)) {
       keysDown.add(event.key);
       gameStateMachine.getState().keyPressed(event.key);
